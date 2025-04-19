@@ -111,7 +111,14 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
       // Get API key from localStorage if available
       const storedApiKey = localStorage.getItem("geminiApiKey")
 
-      const hint = await generateAnimalHint(animal, storedApiKey || undefined)
+      let hint = await generateAnimalHint(animal, storedApiKey || undefined)
+
+      // 追加チェック: ヒントに動物名が含まれていないか確認
+      if (hint.includes(animal)) {
+        // 動物名を含む場合は一般的なヒントに置き換え
+        hint = "特徴的な生息環境を持つ動物です"
+      }
+
       setAnimalLocationHint(hint)
     } catch (error) {
       console.error("Error fetching animal hint:", error)

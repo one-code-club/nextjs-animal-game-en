@@ -85,12 +85,12 @@ function getRandomAnimalFromList(): string {
 export async function generateAnimalHint(animal: string, apiKey?: string): Promise<string> {
   // デフォルトのヒント（APIが使えない場合のフォールバック）
   const defaultHints: Record<string, string> = {
-    ネコ: "家の中や外で見かけることが多い動物です",
-    イヌ: "人間と一緒に暮らすことが多い動物です",
-    ウサギ: "草原や森に住んでいる小さな動物です",
+    ネコ: "家の中や外で見かけることが多い小さな動物です",
+    イヌ: "人間と一緒に暮らすことが多い忠実な動物です",
+    ウサギ: "草原や森に住んでいる長い耳を持つ小さな動物です",
     キリン: "アフリカのサバンナに住んでいる首の長い動物です",
     ゾウ: "アフリカやアジアの森林や草原に住む大きな動物です",
-    ライオン: "アフリカのサバンナに住む猛獣です",
+    ライオン: "アフリカのサバンナに住む大型の猛獣です",
     トラ: "アジアの森林に住む縞模様の猛獣です",
     クマ: "森林や山地に住む大きな動物です",
     サル: "森林や山地に住み、木に登るのが得意な動物です",
@@ -123,13 +123,23 @@ export async function generateAnimalHint(animal: string, apiKey?: string): Promi
     const prompt = `
       "${animal}"という動物についての簡単なヒントを1文で教えてください。
       特に、この動物がどこに住んでいるか、どんな環境で生活しているかについて触れてください。
-      回答は「〜に住んでいる動物です」という形式で、30文字以内でお願いします。
-      余計な説明は不要です。
+      
+      重要: 
+      - 回答には絶対に"${animal}"という単語や、その動物の名前を含めないでください。
+      - "この動物は"や"それは"などの表現を使ってください。
+      - 回答は「〜に住んでいる動物です」という形式で、30文字以内でお願いします。
+      - 余計な説明は不要です。
     `
 
     const result = await model.generateContent(prompt)
     const response = await result.response
-    const text = response.text().trim()
+    let text = response.text().trim()
+
+    // 動物名が含まれていないか確認し、含まれている場合は除去する
+    if (text.includes(animal)) {
+      // 動物名を含む場合はデフォルトのヒントを使用
+      text = defaultHints[animal] || "この動物についてのヒントはありません"
+    }
 
     // 有効な応答がない場合はデフォルトのヒントを使用
     if (!text) {
