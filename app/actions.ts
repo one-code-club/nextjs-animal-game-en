@@ -2,101 +2,146 @@
 
 import { GoogleGenerativeAI } from "@google/generative-ai"
 
-// Function to generate a random animal using Gemini API
-export async function getRandomAnimal(apiKey?: string): Promise<{ animal: string; error?: string }> {
-  // Remove the revalidatePath call that was causing the error
-  // revalidatePath("/") - この行を削除
+// 定義済みの動物リスト
+const ANIMAL_LIST = [
+  "ネコ",
+  "イヌ",
+  "ウサギ",
+  "キリン",
+  "ゾウ",
+  "ライオン",
+  "トラ",
+  "クマ",
+  "サル",
+  "ウマ",
+  "パンダ",
+  "コアラ",
+  "カンガルー",
+  "ペンギン",
+  "クジラ",
+  "イルカ",
+  "カメ",
+  "ワニ",
+  "カバ",
+  "シマウマ",
+  "キツネ",
+  "タヌキ",
+  "リス",
+  "ハムスター",
+  "ネズミ",
+  "カエル",
+  "ヘビ",
+  "トカゲ",
+  "ニワトリ",
+  "アヒル",
+  "ハト",
+  "ワシ",
+  "フクロウ",
+  "カラス",
+  "スズメ",
+  "サメ",
+  "タコ",
+  "イカ",
+  "エビ",
+  "カニ",
+  "クラゲ",
+  "ヒツジ",
+  "ヤギ",
+  "ウシ",
+  "ブタ",
+]
 
+// Function to generate a random animal from the list
+export async function getRandomAnimal(apiKey?: string): Promise<{ animal: string; error?: string }> {
   // Add a timestamp to ensure we're not getting cached results
   const timestamp = Date.now()
-  console.log(`Generating random animal at ${timestamp}`)
+  console.log(`Selecting random animal at ${timestamp}`)
 
-  // Use provided API key or environment variable
+  // Get a random animal from the list
+  const randomAnimal = getRandomAnimalFromList()
+  console.log("Selected animal:", randomAnimal)
+
+  return { animal: randomAnimal, error: undefined }
+}
+
+// Helper function to get a random animal from the list
+function getRandomAnimalFromList(): string {
+  // Use crypto for better randomness if available
+  let randomIndex: number
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    const randomArray = new Uint32Array(1)
+    crypto.getRandomValues(randomArray)
+    randomIndex = randomArray[0] % ANIMAL_LIST.length
+  } else {
+    // Fallback to Math.random with timestamp seed
+    const seed = Date.now()
+    randomIndex = Math.floor((Math.random() * seed) % ANIMAL_LIST.length)
+  }
+
+  return ANIMAL_LIST[randomIndex]
+}
+
+// 新しい関数: 動物の生息地に関するヒントを生成する
+export async function generateAnimalHint(animal: string, apiKey?: string): Promise<string> {
+  // デフォルトのヒント（APIが使えない場合のフォールバック）
+  const defaultHints: Record<string, string> = {
+    ネコ: "家の中や外で見かけることが多い動物です",
+    イヌ: "人間と一緒に暮らすことが多い動物です",
+    ウサギ: "草原や森に住んでいる小さな動物です",
+    キリン: "アフリカのサバンナに住んでいる首の長い動物です",
+    ゾウ: "アフリカやアジアの森林や草原に住む大きな動物です",
+    ライオン: "アフリカのサバンナに住む猛獣です",
+    トラ: "アジアの森林に住む縞模様の猛獣です",
+    クマ: "森林や山地に住む大きな動物です",
+    サル: "森林や山地に住み、木に登るのが得意な動物です",
+    ウマ: "草原で暮らし、人間に飼われることが多い動物です",
+    パンダ: "中国の竹林に住む白黒の動物です",
+    コアラ: "オーストラリアのユーカリの木に住む動物です",
+    カンガルー: "オーストラリアの草原に住む跳ねる動物です",
+    ペンギン: "南極や寒い海に住む泳ぐのが得意な鳥です",
+    クジラ: "海の中で暮らす大きな哺乳類です",
+    イルカ: "海や川に住み、泳ぐのが速い動物です",
+    カメ: "陸や海に住み、甲羅を持つ動物です",
+    ワニ: "熱帯の川や湿地に住む爬虫類です",
+    カバ: "アフリカの川や湖に住む大きな動物です",
+    シマウマ: "アフリカの草原に住む縞模様の動物です",
+    キツネ: "森林や草原に住む賢い動物です",
+    タヌキ: "森林や人里近くに住む夜行性の動物です",
+  }
+
+  // APIキーがない場合はデフォルトのヒントを返す
   const key = apiKey || process.env.GEMINI_API_KEY
-
   if (!key) {
-    return { animal: "", error: "API_KEY_MISSING" }
+    return defaultHints[animal] || "この動物についてのヒントはありません"
   }
 
   try {
-    // Initialize the Gemini API with the key
+    // Gemini APIを使ってヒントを生成
     const genAI = new GoogleGenerativeAI(key)
     const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" })
 
-    // Add timestamp to prompt to prevent caching
     const prompt = `
-      Generate a random common animal name in Japanese. 
-      Choose a well-known animal that most people would recognize.
-      Use general category names (like "クジラ" instead of "マッコウクジラ").
-      Return only the animal name in Japanese, nothing else.
-      Examples of valid responses: ネコ, イヌ, ウサギ, キリン, ゾウ, ライオン, トラ, クマ, サル, ウマ, etc.
-      Do not return the same animal name repeatedly.
-      Do not include any explanations or additional text.
-      Current timestamp: ${timestamp} (ignore this, it's just to prevent caching)
+      "${animal}"という動物についての簡単なヒントを1文で教えてください。
+      特に、この動物がどこに住んでいるか、どんな環境で生活しているかについて触れてください。
+      回答は「〜に住んでいる動物です」という形式で、30文字以内でお願いします。
+      余計な説明は不要です。
     `
 
     const result = await model.generateContent(prompt)
     const response = await result.response
     const text = response.text().trim()
 
-    console.log("Generated animal:", text)
-
-    // Ensure we have a valid animal name
-    if (!text || text.length < 2) {
-      // If we get an empty response, use a list of common animals
-      return getRandomFallbackAnimal()
+    // 有効な応答がない場合はデフォルトのヒントを使用
+    if (!text) {
+      return defaultHints[animal] || "この動物についてのヒントはありません"
     }
 
-    return { animal: text, error: undefined }
+    return text
   } catch (error) {
-    console.error("Error generating random animal:", error)
-    // Return a random animal if API fails
-    return getRandomFallbackAnimal()
+    console.error("Error generating animal hint:", error)
+    // エラーが発生した場合はデフォルトのヒントを返す
+    return defaultHints[animal] || "この動物についてのヒントはありません"
   }
-}
-
-// Helper function to get a random fallback animal
-function getRandomFallbackAnimal(): { animal: string; error?: string } {
-  const fallbackAnimals = [
-    "ネコ",
-    "イヌ",
-    "ウサギ",
-    "キリン",
-    "ゾウ",
-    "ライオン",
-    "トラ",
-    "クマ",
-    "サル",
-    "ウマ",
-    "パンダ",
-    "コアラ",
-    "カンガルー",
-    "ペンギン",
-    "クジラ",
-    "イルカ",
-    "カメ",
-    "ワニ",
-    "カバ",
-    "シマウマ",
-    "キツネ",
-    "タヌキ",
-  ]
-
-  // Use crypto for better randomness if available
-  let randomIndex: number
-  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-    const randomArray = new Uint32Array(1)
-    crypto.getRandomValues(randomArray)
-    randomIndex = randomArray[0] % fallbackAnimals.length
-  } else {
-    // Fallback to Math.random with timestamp seed
-    const seed = Date.now()
-    randomIndex = Math.floor((Math.random() * seed) % fallbackAnimals.length)
-  }
-
-  const randomAnimal = fallbackAnimals[randomIndex]
-  console.log("Using fallback animal:", randomAnimal)
-  return { animal: randomAnimal, error: "API_ERROR" }
 }
 
 export async function evaluateHint(animal: string, hint: string, apiKey?: string): Promise<string> {

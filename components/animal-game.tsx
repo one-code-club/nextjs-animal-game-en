@@ -3,7 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { getRandomAnimal, evaluateHint, checkAnimalGuess, validateApiKey } from "@/app/actions"
+import { getRandomAnimal, evaluateHint, checkAnimalGuess, validateApiKey, generateAnimalHint } from "@/app/actions"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -18,6 +18,40 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+
+// 定義済みの動物リスト（クライアント側でも使用）
+const CLIENT_ANIMAL_LIST = [
+  "ネコ",
+  "イヌ",
+  "ウサギ",
+  "キリン",
+  "ゾウ",
+  "ライオン",
+  "トラ",
+  "クマ",
+  "サル",
+  "ウマ",
+  "パンダ",
+  "コアラ",
+  "カンガルー",
+  "ペンギン",
+  "クジラ",
+  "イルカ",
+  "カメ",
+  "ワニ",
+  "カバ",
+  "シマウマ",
+  "キツネ",
+  "タヌキ",
+  "リス",
+  "ハムスター",
+  "ネズミ",
+  "カエル",
+  "ヘビ",
+  "トカゲ",
+  "ニワトリ",
+  "アヒル",
+]
 
 type HintNode = {
   hint: string
@@ -50,6 +84,10 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
   const [isShaking, setIsShaking] = useState<boolean>(false)
   const [showAnswer, setShowAnswer] = useState<boolean>(false)
 
+  // 新しい状態: 動物の生息地に関するヒント
+  const [animalLocationHint, setAnimalLocationHint] = useState<string>("")
+  const [loadingHint, setLoadingHint] = useState<boolean>(false)
+
   // API key related states
   const [apiKey, setApiKey] = useState<string>("")
   const [showApiKeyDialog, setShowApiKeyDialog] = useState<boolean>(initialError === "API_KEY_MISSING")
@@ -58,6 +96,30 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
 
   // Hint count
   const [hintCount, setHintCount] = useState<number>(0)
+
+  // 動物が設定されたときに生息地のヒントを取得する
+  useEffect(() => {
+    if (secretAnimal) {
+      fetchAnimalHint(secretAnimal)
+    }
+  }, [secretAnimal])
+
+  // 生息地のヒントを取得する関数
+  const fetchAnimalHint = async (animal: string) => {
+    setLoadingHint(true)
+    try {
+      // Get API key from localStorage if available
+      const storedApiKey = localStorage.getItem("geminiApiKey")
+
+      const hint = await generateAnimalHint(animal, storedApiKey || undefined)
+      setAnimalLocationHint(hint)
+    } catch (error) {
+      console.error("Error fetching animal hint:", error)
+      setAnimalLocationHint("この動物についてのヒントはありません")
+    } finally {
+      setLoadingHint(false)
+    }
+  }
 
   useEffect(() => {
     // Check for API key in localStorage first
@@ -90,10 +152,8 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
       } catch (error) {
         console.error("Error initializing game:", error)
         // Use a random animal if there's an error
-        const fallbackAnimals = ["ネコ", "イヌ", "ウサギ", "キリン", "ゾウ", "ライオン"]
-        const randomIndex = Math.floor(Math.random() * fallbackAnimals.length)
-        const randomAnimal = fallbackAnimals[randomIndex]
-        console.log("Using fallback animal due to error:", randomAnimal)
+        const randomAnimal = getRandomClientAnimal()
+        console.log("Using client-side random animal due to error:", randomAnimal)
         setSecretAnimal(randomAnimal)
         setLoading(false)
         setCurrentNode(hintTree)
@@ -105,6 +165,12 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
       initGame()
     }
   }, [initialAnimal, initialError, hintTree])
+
+  // Helper function to get a random animal on the client side
+  function getRandomClientAnimal(): string {
+    const randomIndex = Math.floor(Math.random() * CLIENT_ANIMAL_LIST.length)
+    return CLIENT_ANIMAL_LIST[randomIndex]
+  }
 
   const handleApiKeySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -246,6 +312,7 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
     setResult(null)
     setShowAnswer(false)
     setHintCount(0)
+    setAnimalLocationHint("") // ヒントをリセット
     setHintTree({
       hint: "ルート",
       options: ["", ""],
@@ -257,10 +324,15 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
       // Get API key from localStorage if available
       const storedApiKey = localStorage.getItem("geminiApiKey")
 
+      // Try to get a new animal from the server
       const result = await getRandomAnimal(storedApiKey || undefined)
 
       if (result.error === "API_KEY_MISSING") {
         setShowApiKeyDialog(true)
+        // Use a client-side random animal if API key is missing
+        const randomAnimal = getRandomClientAnimal()
+        console.log("Using client-side random animal due to missing API key:", randomAnimal)
+        setSecretAnimal(randomAnimal)
       } else {
         console.log("New game with animal:", result.animal)
         setSecretAnimal(result.animal)
@@ -268,10 +340,8 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
     } catch (error) {
       console.error("Error resetting game:", error)
       // Use a random animal if there's an error
-      const fallbackAnimals = ["ネコ", "イヌ", "ウサギ", "キリン", "ゾウ", "ライオン"]
-      const randomIndex = Math.floor(Math.random() * fallbackAnimals.length)
-      const randomAnimal = fallbackAnimals[randomIndex]
-      console.log("Using fallback animal due to error:", randomAnimal)
+      const randomAnimal = getRandomClientAnimal()
+      console.log("Using client-side random animal due to error:", randomAnimal)
       setSecretAnimal(randomAnimal)
     } finally {
       setLoading(false)
@@ -387,8 +457,14 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
             </span>
             秘密の動物: {secretAnimal ? "???" : "読み込み中..."}
           </p>
-          {process.env.NODE_ENV === "development" && secretAnimal && (
-            <p className="text-xs text-red-500 mt-1">(開発モード: {secretAnimal})</p>
+          {/* 開発モードの表示を削除し、代わりに生息地のヒントを表示 */}
+          {animalLocationHint && (
+            <p className="text-sm text-blue-700 mt-2 font-medium bg-blue-50 px-3 py-1 rounded-full inline-block border border-blue-200">
+              <span role="img" aria-label="hint" className="mr-1">
+                💡
+              </span>
+              ヒントは: {loadingHint ? "読み込み中..." : animalLocationHint}
+            </p>
           )}
         </div>
         {hintCount > 0 && (
