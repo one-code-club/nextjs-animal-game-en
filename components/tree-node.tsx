@@ -1,25 +1,25 @@
 type HintNode = {
-  hint: string
-  options: [string, string]
-  correctOption: string | null
-  children: HintNode[]
-}
+  hint: string;
+  options: [string, string];
+  correctOption: string | null;
+  children: HintNode[];
+};
 
 interface TreeNodeProps {
-  node: HintNode
-  level?: number
+  node: HintNode;
+  level?: number;
 }
 
 export function TreeNode({ node, level = 0 }: TreeNodeProps) {
   // Skip rendering the root node
-  if (level === 0 && node.hint === "ルート") {
+  if (level === 0 && (node.hint === "ルート" || node.hint === "Root")) {
     return (
       <div className="pl-4">
         {node.children.map((child, index) => (
           <TreeNode key={index} node={child} level={level + 1} />
         ))}
       </div>
-    )
+    );
   }
 
   return (
@@ -38,7 +38,8 @@ export function TreeNode({ node, level = 0 }: TreeNodeProps) {
       <div className="flex space-x-6 mb-6">
         {node.options.map((option, index) => {
           // Determine if this option is the correct one
-          const isCorrectOption = node.correctOption && option === node.correctOption
+          const isCorrectOption =
+            node.correctOption && option === node.correctOption;
 
           return (
             <div
@@ -54,12 +55,12 @@ export function TreeNode({ node, level = 0 }: TreeNodeProps) {
                     <span role="img" aria-label="correct" className="mr-1">
                       ✅
                     </span>
-                    正解!
+                    Correct!
                   </div>
                 )}
               </div>
             </div>
-          )
+          );
         })}
       </div>
 
@@ -67,5 +68,5 @@ export function TreeNode({ node, level = 0 }: TreeNodeProps) {
         <TreeNode key={index} node={child} level={level + 1} />
       ))}
     </div>
-  )
+  );
 }

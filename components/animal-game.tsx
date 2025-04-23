@@ -1,15 +1,21 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState, useEffect } from "react"
-import { getRandomAnimal, evaluateHint, checkAnimalGuess, validateApiKey, generateAnimalHint } from "@/app/actions"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Card, CardContent } from "@/components/ui/card"
-import { Confetti } from "@/components/confetti"
-import { TreeNode } from "@/components/tree-node"
-import { AnimalIcon } from "@/components/animal-icon"
+import { useState, useEffect } from "react";
+import {
+  getRandomAnimal,
+  evaluateHint,
+  checkAnimalGuess,
+  validateApiKey,
+  generateAnimalHint,
+} from "@/app/actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Confetti } from "@/components/confetti";
+import { TreeNode } from "@/components/tree-node";
+import { AnimalIcon } from "@/components/animal-icon";
 import {
   Dialog,
   DialogContent,
@@ -17,223 +23,235 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 
-// 定義済みの動物リスト（クライアント側でも使用）
+// Predefined animal list for client-side use
 const CLIENT_ANIMAL_LIST = [
-  "ネコ",
-  "イヌ",
-  "ウサギ",
-  "キリン",
-  "ゾウ",
-  "ライオン",
-  "トラ",
-  "クマ",
-  "サル",
-  "ウマ",
-  "パンダ",
-  "コアラ",
-  "カンガルー",
-  "ペンギン",
-  "クジラ",
-  "イルカ",
-  "カメ",
-  "ワニ",
-  "カバ",
-  "シマウマ",
-  "キツネ",
-  "タヌキ",
-  "リス",
-  "ハムスター",
-  "ネズミ",
-  "カエル",
-  "ヘビ",
-  "トカゲ",
-  "ニワトリ",
-  "アヒル",
-]
+  "Cat",
+  "Dog",
+  "Rabbit",
+  "Giraffe",
+  "Elephant",
+  "Lion",
+  "Tiger",
+  "Bear",
+  "Monkey",
+  "Horse",
+  "Panda",
+  "Koala",
+  "Kangaroo",
+  "Penguin",
+  "Whale",
+  "Dolphin",
+  "Turtle",
+  "Crocodile",
+  "Hippo",
+  "Zebra",
+  "Fox",
+  "Raccoon",
+  "Squirrel",
+  "Hamster",
+  "Mouse",
+  "Frog",
+  "Snake",
+  "Lizard",
+  "Chicken",
+  "Duck",
+];
 
 type HintNode = {
-  hint: string
-  options: [string, string]
-  correctOption: string | null
-  children: HintNode[]
-}
+  hint: string;
+  options: [string, string];
+  correctOption: string | null;
+  children: HintNode[];
+};
 
 interface AnimalGameProps {
-  initialAnimal?: string
-  initialError?: string
+  initialAnimal?: string;
+  initialError?: string;
 }
 
-export default function AnimalGame({ initialAnimal = "", initialError = "" }: AnimalGameProps) {
-  const [secretAnimal, setSecretAnimal] = useState<string>(initialAnimal)
-  const [loading, setLoading] = useState<boolean>(!initialAnimal || initialError === "API_KEY_MISSING")
-  const [hintInput, setHintInput] = useState<string>("")
-  const [guessInput, setGuessInput] = useState<string>("")
-  const [gameState, setGameState] = useState<"hint" | "guess">("hint")
-  const [showConfetti, setShowConfetti] = useState<boolean>(false)
-  const [result, setResult] = useState<"correct" | "incorrect" | null>(null)
+export default function AnimalGame({
+  initialAnimal = "",
+  initialError = "",
+}: AnimalGameProps) {
+  const [secretAnimal, setSecretAnimal] = useState<string>(initialAnimal);
+  const [loading, setLoading] = useState<boolean>(
+    !initialAnimal || initialError === "API_KEY_MISSING"
+  );
+  const [hintInput, setHintInput] = useState<string>("");
+  const [guessInput, setGuessInput] = useState<string>("");
+  const [gameState, setGameState] = useState<"hint" | "guess">("hint");
+  const [showConfetti, setShowConfetti] = useState<boolean>(false);
+  const [result, setResult] = useState<"correct" | "incorrect" | null>(null);
   const [hintTree, setHintTree] = useState<HintNode>({
-    hint: "ルート",
+    hint: "Root",
     options: ["", ""],
     correctOption: null,
     children: [],
-  })
-  const [currentNode, setCurrentNode] = useState<HintNode | null>(null)
-  const [processingHint, setProcessingHint] = useState<boolean>(false)
-  const [isShaking, setIsShaking] = useState<boolean>(false)
-  const [showAnswer, setShowAnswer] = useState<boolean>(false)
+  });
+  const [currentNode, setCurrentNode] = useState<HintNode | null>(null);
+  const [processingHint, setProcessingHint] = useState<boolean>(false);
+  const [isShaking, setIsShaking] = useState<boolean>(false);
+  const [showAnswer, setShowAnswer] = useState<boolean>(false);
 
-  // 新しい状態: 動物の生息地に関するヒント
-  const [animalLocationHint, setAnimalLocationHint] = useState<string>("")
-  const [loadingHint, setLoadingHint] = useState<boolean>(false)
+  // State for animal location hint
+  const [animalLocationHint, setAnimalLocationHint] = useState<string>("");
+  const [loadingHint, setLoadingHint] = useState<boolean>(false);
 
   // API key related states
-  const [apiKey, setApiKey] = useState<string>("")
-  const [showApiKeyDialog, setShowApiKeyDialog] = useState<boolean>(initialError === "API_KEY_MISSING")
-  const [apiKeyError, setApiKeyError] = useState<string>("")
-  const [validatingApiKey, setValidatingApiKey] = useState<boolean>(false)
+  const [apiKey, setApiKey] = useState<string>("");
+  const [showApiKeyDialog, setShowApiKeyDialog] = useState<boolean>(
+    initialError === "API_KEY_MISSING"
+  );
+  const [apiKeyError, setApiKeyError] = useState<string>("");
+  const [validatingApiKey, setValidatingApiKey] = useState<boolean>(false);
 
   // Hint count
-  const [hintCount, setHintCount] = useState<number>(0)
+  const [hintCount, setHintCount] = useState<number>(0);
 
-  // 動物が設定されたときに生息地のヒントを取得する
+  // Fetch animal habitat hint when animal is set
   useEffect(() => {
     if (secretAnimal) {
-      fetchAnimalHint(secretAnimal)
+      fetchAnimalHint(secretAnimal);
     }
-  }, [secretAnimal])
+  }, [secretAnimal]);
 
-  // 生息地のヒントを取得する関数
+  // Function to fetch animal hint
   const fetchAnimalHint = async (animal: string) => {
-    setLoadingHint(true)
+    setLoadingHint(true);
     try {
       // Get API key from localStorage if available
-      const storedApiKey = localStorage.getItem("geminiApiKey")
+      const storedApiKey = localStorage.getItem("geminiApiKey");
 
-      let hint = await generateAnimalHint(animal, storedApiKey || undefined)
+      let hint = await generateAnimalHint(animal, storedApiKey || undefined);
 
-      // 追加チェック: ヒントに動物名が含まれていないか確認
+      // Additional check: make sure the hint doesn't contain the animal name
       if (hint.includes(animal)) {
-        // 動物名を含む場合は一般的なヒントに置き換え
-        hint = "特徴的な生息環境を持つ動物です"
+        // Replace with generic hint if it contains the animal name
+        hint = "An animal with a distinctive habitat";
       }
 
-      setAnimalLocationHint(hint)
+      setAnimalLocationHint(hint);
     } catch (error) {
-      console.error("Error fetching animal hint:", error)
-      setAnimalLocationHint("この動物についてのヒントはありません")
+      console.error("Error fetching animal hint:", error);
+      setAnimalLocationHint("No hint available for this animal");
     } finally {
-      setLoadingHint(false)
+      setLoadingHint(false);
     }
-  }
+  };
 
   useEffect(() => {
     // Check for API key in localStorage first
-    const storedApiKey = localStorage.getItem("geminiApiKey")
+    const storedApiKey = localStorage.getItem("geminiApiKey");
 
     // If we have an initial animal and no API key error, we can use it directly
     if (initialAnimal && initialError !== "API_KEY_MISSING") {
-      console.log("Using initial animal from server:", initialAnimal)
-      setSecretAnimal(initialAnimal)
-      setLoading(false)
-      setCurrentNode(hintTree)
-      return
+      console.log("Using initial animal from server:", initialAnimal);
+      setSecretAnimal(initialAnimal);
+      setLoading(false);
+      setCurrentNode(hintTree);
+      return;
     }
 
     const initGame = async () => {
       try {
         // If we have a stored API key, use it
-        const result = await getRandomAnimal(storedApiKey || undefined)
+        const result = await getRandomAnimal(storedApiKey || undefined);
 
         if (result.error === "API_KEY_MISSING") {
           // Show API key dialog if key is missing
-          setShowApiKeyDialog(true)
-          setLoading(false)
+          setShowApiKeyDialog(true);
+          setLoading(false);
         } else {
-          console.log("Game initialized with animal:", result.animal)
-          setSecretAnimal(result.animal)
-          setLoading(false)
-          setCurrentNode(hintTree)
+          console.log("Game initialized with animal:", result.animal);
+          setSecretAnimal(result.animal);
+          setLoading(false);
+          setCurrentNode(hintTree);
         }
       } catch (error) {
-        console.error("Error initializing game:", error)
+        console.error("Error initializing game:", error);
         // Use a random animal if there's an error
-        const randomAnimal = getRandomClientAnimal()
-        console.log("Using client-side random animal due to error:", randomAnimal)
-        setSecretAnimal(randomAnimal)
-        setLoading(false)
-        setCurrentNode(hintTree)
+        const randomAnimal = getRandomClientAnimal();
+        console.log(
+          "Using client-side random animal due to error:",
+          randomAnimal
+        );
+        setSecretAnimal(randomAnimal);
+        setLoading(false);
+        setCurrentNode(hintTree);
       }
-    }
+    };
 
     // Only run this if we don't have an initial animal or if there's an API key error
     if (!initialAnimal || initialError === "API_KEY_MISSING") {
-      initGame()
+      initGame();
     }
-  }, [initialAnimal, initialError, hintTree])
+  }, [initialAnimal, initialError, hintTree]);
 
   // Helper function to get a random animal on the client side
   function getRandomClientAnimal(): string {
-    const randomIndex = Math.floor(Math.random() * CLIENT_ANIMAL_LIST.length)
-    return CLIENT_ANIMAL_LIST[randomIndex]
+    const randomIndex = Math.floor(Math.random() * CLIENT_ANIMAL_LIST.length);
+    return CLIENT_ANIMAL_LIST[randomIndex];
   }
 
   const handleApiKeySubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!apiKey.trim()) {
-      setApiKeyError("APIキーを入力してください")
-      return
+      setApiKeyError("Please enter an API key");
+      return;
     }
 
-    setValidatingApiKey(true)
-    setApiKeyError("")
+    setValidatingApiKey(true);
+    setApiKeyError("");
 
     try {
-      const isValid = await validateApiKey(apiKey)
+      const isValid = await validateApiKey(apiKey);
 
       if (isValid) {
         // Store API key in localStorage
-        localStorage.setItem("geminiApiKey", apiKey)
+        localStorage.setItem("geminiApiKey", apiKey);
 
         // Close dialog and initialize game
-        setShowApiKeyDialog(false)
-        setLoading(true)
+        setShowApiKeyDialog(false);
+        setLoading(true);
 
-        const result = await getRandomAnimal(apiKey)
-        setSecretAnimal(result.animal)
-        setCurrentNode(hintTree)
+        const result = await getRandomAnimal(apiKey);
+        setSecretAnimal(result.animal);
+        setCurrentNode(hintTree);
       } else {
-        setApiKeyError("無効なAPIキーです。もう一度確認してください。")
+        setApiKeyError("Invalid API key. Please check and try again.");
       }
     } catch (error) {
-      console.error("Error validating API key:", error)
-      setApiKeyError("APIキーの検証中にエラーが発生しました。")
+      console.error("Error validating API key:", error);
+      setApiKeyError("An error occurred while validating the API key.");
     } finally {
-      setValidatingApiKey(false)
-      setLoading(false)
+      setValidatingApiKey(false);
+      setLoading(false);
     }
-  }
+  };
 
   const handleHintSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
-    if (!hintInput.includes("、") && !hintInput.includes(",")) {
-      alert("ヒントは「〇〇、△△」のように2つの選択肢を含めてください")
-      return
+    if (!hintInput.includes(", ") && !hintInput.includes(",")) {
+      alert("Please include two options like 'option1, option2'");
+      return;
     }
 
-    setProcessingHint(true)
+    setProcessingHint(true);
 
     try {
       // Split the hint into two options
-      const options = hintInput.includes("、") ? hintInput.split("、") : hintInput.split(",")
+      const options = hintInput.includes(", ")
+        ? hintInput.split(", ")
+        : hintInput.split(",");
 
       if (options.length !== 2) {
-        alert("ヒントは2つの選択肢を含めてください")
-        setProcessingHint(false)
-        return
+        alert("Please include exactly two options");
+        setProcessingHint(false);
+        return;
       }
 
       // Create a new node
@@ -242,133 +260,151 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
         options: [options[0].trim(), options[1].trim()],
         correctOption: null,
         children: [],
-      }
+      };
 
       // Get API key from localStorage if available
-      const storedApiKey = localStorage.getItem("geminiApiKey")
+      const storedApiKey = localStorage.getItem("geminiApiKey");
 
       // Evaluate which option is correct
-      const correctOption = await evaluateHint(secretAnimal, hintInput, storedApiKey || undefined)
-      newNode.correctOption = correctOption
+      const correctOption = await evaluateHint(
+        secretAnimal,
+        hintInput,
+        storedApiKey || undefined
+      );
+      newNode.correctOption = correctOption;
 
       // Update the tree
       if (currentNode) {
-        currentNode.children.push(newNode)
-        setCurrentNode(newNode)
-        setHintTree({ ...hintTree }) // Force re-render
+        currentNode.children.push(newNode);
+        setCurrentNode(newNode);
+        setHintTree({ ...hintTree }); // Force re-render
       }
 
       // Increment hint count
-      setHintCount((prevCount) => prevCount + 1)
+      setHintCount((prevCount) => prevCount + 1);
 
-      setHintInput("")
+      setHintInput("");
     } catch (error) {
-      console.error("Error processing hint:", error)
+      console.error("Error processing hint:", error);
     } finally {
-      setProcessingHint(false)
+      setProcessingHint(false);
     }
-  }
+  };
 
   const handleGuessSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!guessInput.trim()) {
-      alert("動物の名前を入力してください")
-      return
+      alert("Please enter an animal name");
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
       // Get API key from localStorage if available
-      const storedApiKey = localStorage.getItem("geminiApiKey")
+      const storedApiKey = localStorage.getItem("geminiApiKey");
 
-      const isCorrect = await checkAnimalGuess(secretAnimal, guessInput, storedApiKey || undefined)
+      const isCorrect = await checkAnimalGuess(
+        secretAnimal,
+        guessInput,
+        storedApiKey || undefined
+      );
 
       if (isCorrect) {
-        setResult("correct")
-        setShowConfetti(true)
-        setTimeout(() => setShowConfetti(false), 5000)
+        setResult("correct");
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 5000);
       } else {
-        setResult("incorrect")
+        setResult("incorrect");
         // Add shake animation for incorrect answers
-        setIsShaking(true)
-        setTimeout(() => setIsShaking(false), 500)
+        setIsShaking(true);
+        setTimeout(() => setIsShaking(false), 500);
       }
     } catch (error) {
-      console.error("Error checking guess:", error)
+      console.error("Error checking guess:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const switchToGuess = () => {
-    setGameState("guess")
-  }
+    setGameState("guess");
+  };
 
   const switchToHint = () => {
-    setGameState("hint")
-    setResult(null)
-  }
+    setGameState("hint");
+    setResult(null);
+  };
 
   const resetGame = async () => {
-    setLoading(true)
-    setHintInput("")
-    setGuessInput("")
-    setGameState("hint")
-    setResult(null)
-    setShowAnswer(false)
-    setHintCount(0)
-    setAnimalLocationHint("") // ヒントをリセット
+    setLoading(true);
+    setHintInput("");
+    setGuessInput("");
+    setGameState("hint");
+    setResult(null);
+    setShowAnswer(false);
+    setHintCount(0);
+    setAnimalLocationHint(""); // Reset hint
     setHintTree({
-      hint: "ルート",
+      hint: "Root",
       options: ["", ""],
       correctOption: null,
       children: [],
-    })
+    });
 
     try {
       // Get API key from localStorage if available
-      const storedApiKey = localStorage.getItem("geminiApiKey")
+      const storedApiKey = localStorage.getItem("geminiApiKey");
 
       // Try to get a new animal from the server
-      const result = await getRandomAnimal(storedApiKey || undefined)
+      const result = await getRandomAnimal(storedApiKey || undefined);
 
       if (result.error === "API_KEY_MISSING") {
-        setShowApiKeyDialog(true)
+        setShowApiKeyDialog(true);
         // Use a client-side random animal if API key is missing
-        const randomAnimal = getRandomClientAnimal()
-        console.log("Using client-side random animal due to missing API key:", randomAnimal)
-        setSecretAnimal(randomAnimal)
+        const randomAnimal = getRandomClientAnimal();
+        console.log(
+          "Using client-side random animal due to missing API key:",
+          randomAnimal
+        );
+        setSecretAnimal(randomAnimal);
       } else {
-        console.log("New game with animal:", result.animal)
-        setSecretAnimal(result.animal)
+        console.log("New game with animal:", result.animal);
+        setSecretAnimal(result.animal);
       }
     } catch (error) {
-      console.error("Error resetting game:", error)
+      console.error("Error resetting game:", error);
       // Use a random animal if there's an error
-      const randomAnimal = getRandomClientAnimal()
-      console.log("Using client-side random animal due to error:", randomAnimal)
-      setSecretAnimal(randomAnimal)
+      const randomAnimal = getRandomClientAnimal();
+      console.log(
+        "Using client-side random animal due to error:",
+        randomAnimal
+      );
+      setSecretAnimal(randomAnimal);
     } finally {
-      setLoading(false)
-      setCurrentNode(hintTree)
+      setLoading(false);
+      setCurrentNode(hintTree);
     }
-  }
+  };
 
   const handleShowAnswer = () => {
-    setShowAnswer(true)
+    setShowAnswer(true);
     // Hide the answer after 3 seconds
     setTimeout(() => {
-      setShowAnswer(false)
-    }, 3000)
-  }
+      setShowAnswer(false);
+    }, 3000);
+  };
 
   if (loading && !secretAnimal && !showApiKeyDialog) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] p-8">
-        <div className="text-4xl font-bold game-title mb-6">動物当てゲーム</div>
-        <div className="text-xl text-center mb-8 text-purple-700">ゲームを準備中...</div>
+        <div className="text-4xl font-bold game-title mb-6">
+          Animal Guessing Game
+        </div>
+        <div className="text-xl text-center mb-8 text-purple-700">
+          Preparing the game...
+        </div>
         <div className="flex space-x-6">
           <AnimalIcon className="animate-pulse">🐱</AnimalIcon>
           <AnimalIcon className="animate-pulse delay-100">🐶</AnimalIcon>
@@ -381,7 +417,7 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
           <span className="loading-dot"></span>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -396,19 +432,19 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
               <span role="img" aria-label="key" className="mr-2">
                 🔑
               </span>
-              Gemini APIキーが必要です
+              Gemini API Key Required
             </DialogTitle>
             <DialogDescription className="text-center text-base">
-              このゲームを遊ぶには、Google Gemini APIキーが必要です。
+              To play this game, you need a Google Gemini API key.
               <a
                 href="https://ai.google.dev/"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-600 hover:underline ml-1 font-medium"
               >
-                こちら
+                Get one here
               </a>
-              からAPIキーを取得できます。
+              .
             </DialogDescription>
           </DialogHeader>
 
@@ -416,24 +452,32 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
             <div className="space-y-3">
               <Input
                 id="apiKey"
-                placeholder="Gemini APIキーを入力"
+                placeholder="Enter your Gemini API key"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 disabled={validatingApiKey}
                 className="input-animal text-base"
               />
-              {apiKeyError && <p className="text-sm text-red-500 text-center font-medium">{apiKeyError}</p>}
+              {apiKeyError && (
+                <p className="text-sm text-red-500 text-center font-medium">
+                  {apiKeyError}
+                </p>
+              )}
             </div>
 
             <DialogFooter className="flex justify-center">
-              <Button type="submit" disabled={validatingApiKey || !apiKey.trim()} className="btn-animal">
+              <Button
+                type="submit"
+                disabled={validatingApiKey || !apiKey.trim()}
+                className="btn-animal"
+              >
                 {validatingApiKey ? (
                   <span className="flex items-center">
-                    <span className="animate-spin mr-2">🔄</span> 検証中...
+                    <span className="animate-spin mr-2">🔄</span> Validating...
                   </span>
                 ) : (
                   <span className="flex items-center">
-                    <span className="mr-2">🔑</span> 送信
+                    <span className="mr-2">🔑</span> Submit
                   </span>
                 )}
               </Button>
@@ -444,7 +488,9 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
 
       {/* Game title and secret animal hint */}
       <div className="text-center slide-in">
-        <h1 className="text-5xl font-bold mb-4 game-title">動物当てゲーム</h1>
+        <h1 className="text-5xl font-bold mb-4 game-title">
+          Animal Guessing Game
+        </h1>
         <div className="flex justify-center space-x-4 mb-6">
           <AnimalIcon className="float">🐱</AnimalIcon>
           <AnimalIcon className="float" style={{ animationDelay: "0.5s" }}>
@@ -462,15 +508,15 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
             <span role="img" aria-label="secret" className="mr-2">
               🤫
             </span>
-            秘密の動物: {secretAnimal ? "???" : "読み込み中..."}
+            Secret Animal: {secretAnimal ? "???" : "Loading..."}
           </p>
-          {/* 開発モードの表示を削除し、代わりに生息地のヒントを表示 */}
+          {/* Display habitat hint */}
           {animalLocationHint && (
             <p className="text-sm text-blue-700 mt-2 font-medium bg-blue-50 px-3 py-1 rounded-full inline-block border border-blue-200">
               <span role="img" aria-label="hint" className="mr-1">
                 💡
               </span>
-              ヒントは: {loadingHint ? "読み込み中..." : animalLocationHint}
+              Hint: {loadingHint ? "Loading..." : animalLocationHint}
             </p>
           )}
         </div>
@@ -479,7 +525,7 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
             <span role="img" aria-label="hint count" className="mr-2">
               🔍
             </span>
-            ヒント回数: {hintCount}回
+            Hints used: {hintCount}
           </div>
         )}
       </div>
@@ -493,21 +539,21 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
                 <span role="img" aria-label="hint" className="mr-3 text-3xl">
                   💡
                 </span>
-                ヒントを入力
+                Enter a Hint
               </span>
             ) : (
               <span className="flex items-center justify-center">
                 <span role="img" aria-label="guess" className="mr-3 text-3xl">
                   🎯
                 </span>
-                動物の名前を当ててみよう！
+                Guess the Animal!
               </span>
             )}
           </h2>
           <p className="text-gray-600 text-center text-lg">
             {gameState === "hint"
-              ? "ヒントを言ってください。例えば「海に住む動物、陸に住む動物」のように2つの種類をたずねてください。"
-              : "何の動物か分かりましたか？名前を入力してください。"}
+              ? "Enter a hint with two options. For example: 'Lives in water, Lives on land'"
+              : "Do you know what animal it is? Enter your guess."}
           </p>
         </CardContent>
       </Card>
@@ -520,7 +566,7 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
               <span role="img" aria-label="history" className="mr-3 text-3xl">
                 📝
               </span>
-              ヒント履歴
+              Hint History
             </h2>
             <div className="overflow-auto max-h-96 px-2">
               <TreeNode node={hintTree} />
@@ -530,39 +576,57 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
       )}
 
       {/* Input form */}
-      <Card className={`card-input slide-in ${isShaking ? "shake" : ""}`} style={{ animationDelay: "0.3s" }}>
+      <Card
+        className={`card-input slide-in ${isShaking ? "shake" : ""}`}
+        style={{ animationDelay: "0.3s" }}
+      >
         <CardContent className="p-8">
           {gameState === "hint" ? (
             <form onSubmit={handleHintSubmit} className="space-y-6">
               <Input
                 value={hintInput}
                 onChange={(e) => setHintInput(e.target.value)}
-                placeholder="〇〇、▲▲のように２つの選択肢だけを書いてね"
+                placeholder="Enter two options like 'option1, option2'"
                 disabled={processingHint}
                 className="input-animal text-lg"
               />
               <div className="flex flex-wrap items-center gap-4 justify-center">
-                <Button type="submit" disabled={processingHint || !hintInput} className="btn-hint">
+                <Button
+                  type="submit"
+                  disabled={processingHint || !hintInput}
+                  className="btn-hint"
+                >
                   {processingHint ? (
                     <span className="flex items-center">
-                      <span className="animate-spin mr-2">🔄</span> 処理中...
+                      <span className="animate-spin mr-2">🔄</span>{" "}
+                      Processing...
                     </span>
                   ) : (
                     <span className="flex items-center">
-                      <span className="mr-2">📤</span> 送信
+                      <span className="mr-2">📤</span> Submit
                     </span>
                   )}
                 </Button>
-                <Button type="button" variant="outline" onClick={switchToGuess} className="btn-animal">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={switchToGuess}
+                  className="btn-animal"
+                >
                   <span className="flex items-center">
-                    <span className="mr-2">🎯</span> 名前を当てる
+                    <span className="mr-2">🎯</span> Guess the Animal
                   </span>
                 </Button>
 
                 <div className="flex items-center ml-auto">
-                  <Button type="button" variant="outline" onClick={handleShowAnswer} className="btn-answer">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleShowAnswer}
+                    className="btn-answer"
+                  >
                     <span className="flex items-center">
-                      <span className="mr-2">👀</span> 答えを教えて
+                      <span className="mr-2">👀</span> Show Answer
                     </span>
                   </Button>
                   {showAnswer && (
@@ -578,32 +642,46 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
               <Input
                 value={guessInput}
                 onChange={(e) => setGuessInput(e.target.value)}
-                placeholder="動物の名前を入力"
+                placeholder="Enter animal name"
                 disabled={loading}
                 className="input-animal text-lg"
               />
               <div className="flex flex-wrap items-center gap-4 justify-center">
-                <Button type="submit" disabled={loading || !guessInput} className="btn-animal">
+                <Button
+                  type="submit"
+                  disabled={loading || !guessInput}
+                  className="btn-animal"
+                >
                   {loading ? (
                     <span className="flex items-center">
-                      <span className="animate-spin mr-2">🔄</span> 確認中...
+                      <span className="animate-spin mr-2">🔄</span> Checking...
                     </span>
                   ) : (
                     <span className="flex items-center">
-                      <span className="mr-2">🎯</span> 回答する
+                      <span className="mr-2">🎯</span> Submit Guess
                     </span>
                   )}
                 </Button>
-                <Button type="button" variant="outline" onClick={switchToHint} className="btn-hint">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={switchToHint}
+                  className="btn-hint"
+                >
                   <span className="flex items-center">
-                    <span className="mr-2">💡</span> ヒントに戻る
+                    <span className="mr-2">💡</span> Back to Hints
                   </span>
                 </Button>
 
                 <div className="flex items-center ml-auto">
-                  <Button type="button" variant="outline" onClick={handleShowAnswer} className="btn-answer">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleShowAnswer}
+                    className="btn-answer"
+                  >
                     <span className="flex items-center">
-                      <span className="mr-2">👀</span> 答えを教えて
+                      <span className="mr-2">👀</span> Show Answer
                     </span>
                   </Button>
                   {showAnswer && (
@@ -630,17 +708,23 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
                     <span role="img" aria-label="correct" className="mr-3">
                       🎉
                     </span>
-                    正解！
+                    Correct!
                   </h3>
-                  <p className="text-xl mb-4">素晴らしい！正解は「{secretAnimal}」でした！</p>
+                  <p className="text-xl mb-4">
+                    Amazing! The answer was "{secretAnimal}"!
+                  </p>
                   <div className="flex justify-center mt-6 space-x-4">
                     <AnimalIcon className="animate-bounce">🎊</AnimalIcon>
-                    <AnimalIcon className="animate-bounce delay-100">🎉</AnimalIcon>
-                    <AnimalIcon className="animate-bounce delay-200">🎊</AnimalIcon>
+                    <AnimalIcon className="animate-bounce delay-100">
+                      🎉
+                    </AnimalIcon>
+                    <AnimalIcon className="animate-bounce delay-200">
+                      🎊
+                    </AnimalIcon>
                   </div>
                   <Button onClick={resetGame} className="mt-6 btn-animal">
                     <span className="flex items-center">
-                      <span className="mr-2">🔄</span> もう一度遊ぶ
+                      <span className="mr-2">🔄</span> Play Again
                     </span>
                   </Button>
                 </div>
@@ -650,12 +734,16 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
                     <span role="img" aria-label="incorrect" className="mr-2">
                       ❌
                     </span>
-                    不正解
+                    Incorrect
                   </h3>
-                  <p className="text-lg">残念！もう少し考えてみましょう。</p>
-                  <Button onClick={switchToHint} variant="outline" className="mt-4 btn-hint">
+                  <p className="text-lg">Sorry! Try thinking a bit more.</p>
+                  <Button
+                    onClick={switchToHint}
+                    variant="outline"
+                    className="mt-4 btn-hint"
+                  >
                     <span className="flex items-center">
-                      <span className="mr-2">💡</span> ヒントに戻る
+                      <span className="mr-2">💡</span> Back to Hints
                     </span>
                   </Button>
                 </div>
@@ -665,5 +753,5 @@ export default function AnimalGame({ initialAnimal = "", initialError = "" }: An
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
